@@ -2,6 +2,7 @@ import axios from 'axios'
 import qs from 'qs'
 import Auth from '@/assets/utils/Auth.js'
 import ModalWarn from '@/components/ModalWarn.js'
+import JSONBig from "json-bigint";
 var CancelToken = axios.CancelToken
 //POST传参序列化
 axios.interceptors.request.use(
@@ -59,46 +60,61 @@ axios.interceptors.response.use(
 axios.defaults.method = 'post'
 axios.defaults.baseURL = window.location.origin
 
-export default function(
-  url,
-  data = {},
-  method = 'post',
-  prov = '',
-  type = 'application/x-www-form-urlencoded',
-  transformResponse,
-  cancelObj
-) {
+export default function(...rest) {
+  let config;
+  if(rest && rest[0]){
+    if (typeof rest[0] === 'object') {
+      config = {
+        ...{
+          url: '',
+          data: {},
+          method: 'post',
+          prov: '',
+          type: 'application/x-www-form-urlencoded',
+          trans: false
+        },
+        ...(rest[0] || {})
+      };
+    } else {
+     let [url, data, method, prov, type, trans, cancelObj] = rest;
+      config = {
+        url, data, method, prov, type, trans, cancelObj
+      }
+    }
+  }
   if (prov && !Auth(prov)) {
-    return Promise.reject({
+    return Promise.resolve({
       success: false,
       message: url + 'NO_RIGHT'
     })
   }
   return new Promise((resolve, reject) => {
-    let config = {
-      method: method || 'post',
-      url: url + '?t=' + new Date().getTime(),
-      headers: {
-        'Content-Type': type,
+    config.url = config.url + '?t=' + new Date().getTime();
+    config.headers = {
+      ...{
+        'Content-Type': config.type || 'application/x-www-form-urlencoded',
         'X-Requested-With': 'XMLHttpRequest'
       },
-      CancelToken: new CancelToken(function(f) {
-        if (cancelObj) {
-          if (!cancelObj.hasOwnProperty(url)) {
-            cancelObj[url] = f
-          }
+      ...(config.headers || {})
+    }
+    config.method = config.method || 'post';
+    if (config.trans) {
+      config.transformResponse = config.trans === true ? [function (data) {
+        return JSONBig.parse(data);
+      }] : config.trans;
+    }
+    config.CancelToken = new CancelToken(function (f) {
+      if (config.cancelObj) {
+        if (!config.cancelObj.hasOwnProperty(config.url)) {
+          config.cancelObj[config.url] = f
         }
-      })
-    }
-    if(transformResponse){
-      config.transformResponse = transformResponse || [function (data) {
-        return data;
-      }]
-    }
-    if (method && method === 'post') {
-      config.data = data
+      }
+    });
+
+    if (config.method && config.method === 'post') {
+      config.data = config.data || {}
     } else {
-      config.params = data
+      config.params = config.data
     }
 
     axios(config)
