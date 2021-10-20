@@ -1,0 +1,12 @@
+{
+  "root":true,
+  "extends":[
+    "react-app"
+  ],
+  "plugins": ["react"],
+  "rules": {
+    "javascript.implicitProjectConfig.experimentalDecorators": true,
+    "import/no-named-as-default": 0,
+    "react-hooks/exhaustive-deps":0
+  }
+}
